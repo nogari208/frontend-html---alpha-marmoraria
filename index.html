@@ -972,7 +972,7 @@ select.filter{
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Material</th><th>Tipo</th><th>Acabamento</th><th>Preço /m²</th><th>Origem</th><th>Ações</th>
+            <th>Material</th><th>Tipo</th><th>Acabamento</th><th>Custo /m²</th><th>Origem</th><th>Ações</th>
           </tr></thead>
           <tbody id="mat-tbody"></tbody>
         </table>
@@ -1468,7 +1468,7 @@ select.filter{
           </select>
         </div>
         <div class="form-group">
-          <label>Preço por m² (R$) *</label>
+          <label>Preço de custo por m² (R$) *</label>
           <input type="number" id="mat-preco" placeholder="0,00" step="0.01" min="0"/>
         </div>
       </div>
@@ -1553,6 +1553,7 @@ select.filter{
       </div>
       <div class="form-row cols-2">
         <div class="form-group"><label>Estoque mínimo</label><input type="number" id="chapa-min" value="1" min="0"/></div>
+        <div class="form-group"><label>Preço de venda por m² (R$)</label><input type="number" id="chapa-venda-m2" placeholder="0,00" step="0.01" min="0"/></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -2180,125 +2181,72 @@ function adicionarItem(item = null) {
   const c = document.getElementById('itens-container');
   const div = document.createElement('div');
   div.className = 'item-bloco';
-  const qtdVal = item ? parseFloat(item.qtd) : 0;
+  const qtdVal = item ? parseFloat(item.qtd) || 0 : 0;
   const qtdDisplay = qtdVal ? qtdVal.toLocaleString('pt-BR', {maximumFractionDigits:4}) : '0';
-  const custoPedra = item ? (item.custoPedra || 0) : 0;
-  const maoObra = item ? (item.maoObra || 0) : 0;
-  const energia = item ? (item.energia || 0) : 0;
-  const custoTotal = custoPedra + maoObra + energia;
   const precoVenda = item ? (item.preco || 0) : 0;
-  const lucro = precoVenda - custoTotal;
-  const margem = precoVenda > 0 ? ((lucro / precoVenda) * 100).toFixed(1) : '';
+  const lbl = 'font-size:10px;color:var(--muted);font-weight:600;';
+  const inp = 'width:100%;min-width:0;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px;';
 
   div.innerHTML = `
     <div class="item-bloco-inner" style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;background:var(--surface);">
-      <div style="display:grid;grid-template-columns:1.5fr 1.5fr 1fr 1fr auto auto;gap:8px;align-items:end;margin-bottom:10px;">
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">NOME DA PECA</span>
-          <input type="text" placeholder="Nome da peca" value="${item ? item.desc : ''}" class="item-desc" style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px;" oninput="calcularItem(this)"/>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">CHAPA</span>
-          <select class="item-chapa" style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;" onchange="selecionarChapa(this)">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end;margin-bottom:10px;">
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+          <span style="${lbl}">CHAPA</span>
+          <select class="item-chapa" style="${inp}" onchange="selecionarChapa(this)">
             <option value="">Selecionar...</option>
-            ${chapas.map(c=>`<option value="${c.id}" data-custo="${c.custoPorM2||0}">${c.material}</option>`).join('')}
+            ${chapas.map(ch=>`<option value="${ch.id}">${ch.material}${ch.vendaM2 ? '' : ' (sem preço de venda)'}</option>`).join('')}
           </select>
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">COMPRIMENTO</span>
-          <input type="number" class="calc-comp" placeholder="0,00" step="0.01" min="0" value="${item && item.comp ? item.comp : ''}" style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px;" oninput="calcularItem(this)"/>
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+          <span style="${lbl}">NOME DA PEÇA</span>
+          <input type="text" placeholder="Ex: Bancada" value="${item ? item.desc : ''}" class="item-desc" style="${inp}"/>
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">LARGURA</span>
-          <input type="number" class="calc-larg" placeholder="0,00" step="0.01" min="0" value="${item && item.larg ? item.larg : ''}" style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px;" oninput="calcularItem(this)"/>
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+          <span style="${lbl}">COMPRIMENTO (m)</span>
+          <input type="number" class="calc-comp" placeholder="0,00" step="0.01" min="0" value="${item && item.comp ? item.comp : ''}" style="${inp}" oninput="calcularItem(this)"/>
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;min-width:80px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">M2</span>
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+          <span style="${lbl}">LARGURA (m)</span>
+          <input type="number" class="calc-larg" placeholder="0,00" step="0.01" min="0" value="${item && item.larg ? item.larg : ''}" style="${inp}" oninput="calcularItem(this)"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+          <span style="${lbl}">ÁREA (m²)</span>
           <span class="calc-resultado" style="font-size:16px;font-weight:700;color:var(--gold);padding:8px 0;">${qtdDisplay}</span>
           <input type="hidden" class="item-qtd" value="${item ? item.qtd : '0'}"/>
         </div>
-        <button class="btn-remove" onclick="this.closest('.item-bloco').remove();calcTotal();" style="margin-bottom:2px;">x</button>
+        <button class="btn-remove" onclick="this.closest('.item-bloco').remove();calcTotal();" style="margin-bottom:2px;justify-self:end;">x</button>
       </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;padding:10px;background:var(--bg);border-radius:8px;">
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">CUSTO DA PEDRA</span>
-          <span class="item-custo-pedra" style="font-size:14px;font-weight:600;color:var(--text);padding:4px 0;">R$ ${custoPedra.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:10px;align-items:end;">
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+          <span style="${lbl}">VALOR DA PEÇA (R$)</span>
+          <input type="number" class="item-preco" placeholder="0,00" step="0.01" min="0" value="${precoVenda || ''}" style="${inp}font-size:15px;font-weight:600;" oninput="editarPrecoManual(this)"/>
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">MAO DE OBRA</span>
-          <input type="number" class="item-mao-obra" placeholder="0,00" step="0.01" min="0" value="${maoObra || ''}" style="padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:14px;" oninput="calcularItem(this)"/>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">ENERGIA</span>
-          <input type="number" class="item-energia" placeholder="0,00" step="0.01" min="0" value="${energia || ''}" style="padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:14px;" oninput="calcularItem(this)"/>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">CUSTO TOTAL</span>
-          <span class="item-custo-total" style="font-size:15px;font-weight:700;color:var(--red);padding:4px 0;">R$ ${custoTotal.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end;">
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">PRECO DE VENDA (R$)</span>
-          <input type="number" class="item-preco" placeholder="0,00" step="0.01" min="0" value="${precoVenda || ''}" style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:15px;font-weight:600;" oninput="atualizarVendaMargem(this, 'preco')"/>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">LUCRO</span>
-          <span class="item-lucro" style="font-size:15px;font-weight:700;color:var(--green);padding:8px 0;">R$ ${lucro > 0 ? lucro.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '0,00'}</span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          <span style="font-size:10px;color:var(--muted);font-weight:600;">MARGEM (%)</span>
-          <input type="number" class="item-margem" placeholder="0" step="0.1" min="0" max="100" value="${margem || ''}" style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:15px;font-weight:600;" oninput="atualizarVendaMargem(this, 'margem')"/>
-        </div>
+        <span class="item-sugerido" style="font-size:12px;color:var(--muted);padding-bottom:10px;"></span>
       </div>
       <div class="item-total" style="display:none;">${precoVenda.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
     </div>
   `;
   c.appendChild(div);
 
-  // Ao editar: restaura a chapa selecionada e os custos calculados
-  if (item) {
-    const selChapa = div.querySelector('.item-chapa');
-    if (selChapa && item.chapaId) selChapa.value = String(item.chapaId);
-    const custoPedraEl = div.querySelector('.item-custo-pedra');
-    if (custoPedraEl) {
-      custoPedraEl.dataset.valorTotal = custoPedra;
-      // guarda custo por m2 pra recalcular se mudar medida
-      const chapaObj = chapas.find(c => c.id === item.chapaId);
-      if (chapaObj) {
-        let cpm2 = chapaObj.custoPorM2;
-        if ((!cpm2 || cpm2 <= 0) && chapaObj.valor && chapaObj.w && chapaObj.h) {
-          const m2c = chapaObj.w * chapaObj.h;
-          cpm2 = m2c > 0 ? chapaObj.valor / m2c : 0;
-        }
-        custoPedraEl.dataset.valor = cpm2 || 0;
-      }
-    }
-  }
+  const selChapa = div.querySelector('.item-chapa');
+  if (item && item.chapaId) selChapa.value = String(item.chapaId);
+  const chapaObj = chapas.find(x => x.id === parseInt(selChapa.value));
+  div.dataset.venda = chapaObj ? (chapaObj.vendaM2 || 0) : ((item && item.vendaM2) || 0);
+  // item já salvo: mantém o valor que estava gravado (não recalcula por cima)
+  if (item) div.querySelector('.item-preco').dataset.manual = '1';
+  else div.querySelector('.item-sugerido').textContent = 'Selecione a chapa e informe comprimento e largura.';
 }
 
 function calcularM2(input) { calcularItem(input); }
 
 function selecionarChapa(sel) {
   const bloco = sel.closest('.item-bloco');
-  const chapaId = parseInt(sel.value);
-  let custoPorM2 = 0;
-  const chapa = chapas.find(c => c.id === chapaId);
-  if (chapa) {
-    if (chapa.custoPorM2 && chapa.custoPorM2 > 0) {
-      custoPorM2 = chapa.custoPorM2;
-    } else if (chapa.valor && chapa.w && chapa.h) {
-      const m2chapa = chapa.w * chapa.h;
-      custoPorM2 = m2chapa > 0 ? chapa.valor / m2chapa : 0;
-    }
-  }
-  const custoPedraEl = bloco.querySelector('.item-custo-pedra');
-  custoPedraEl.dataset.valor = custoPorM2;
+  const chapa = chapas.find(c => c.id === parseInt(sel.value));
+  bloco.dataset.venda = chapa ? (chapa.vendaM2 || 0) : 0;
   calcularItem(sel);
 }
 
+// Área = comprimento × largura | Valor sugerido = área × preço de venda por m² do estoque
 function calcularItem(input) {
   const bloco = input.closest('.item-bloco');
   const larg = parseFloat(bloco.querySelector('.calc-larg').value) || 0;
@@ -2307,63 +2255,24 @@ function calcularItem(input) {
   bloco.querySelector('.calc-resultado').textContent = m2 ? m2.toLocaleString('pt-BR',{maximumFractionDigits:4}) : '0';
   bloco.querySelector('.item-qtd').value = m2 ? m2.toFixed(4) : '0';
 
-  // Custo da pedra = m2 * custoPorM2 da chapa selecionada
-  const custoPedraEl = bloco.querySelector('.item-custo-pedra');
-  const custoPorM2 = parseFloat(custoPedraEl?.dataset?.valor) || 0;
-  const custoPedra = m2 * custoPorM2;
-  if (custoPedraEl) {
-    custoPedraEl.textContent = 'R$ ' + custoPedra.toLocaleString('pt-BR',{minimumFractionDigits:2});
-    custoPedraEl.dataset.valorTotal = custoPedra;
-  }
+  const venda = parseFloat(bloco.dataset.venda) || 0;
+  const sugerido = m2 * venda;
+  bloco.dataset.sugerido = sugerido;
+  const chapaSel = bloco.querySelector('.item-chapa').value;
+  const dica = bloco.querySelector('.item-sugerido');
+  if (!chapaSel) dica.textContent = 'Selecione a chapa.';
+  else if (!venda) dica.textContent = 'Esta chapa está sem preço de venda por m² no estoque.';
+  else dica.textContent = 'Venda: R$ ' + venda.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '/m²  •  Sugerido: R$ ' + sugerido.toLocaleString('pt-BR',{minimumFractionDigits:2}) + ' (você pode alterar o valor ao lado)';
 
-  // Recalcula custo total
-  const maoObra = parseFloat(bloco.querySelector('.item-mao-obra')?.value) || 0;
-  const energia = parseFloat(bloco.querySelector('.item-energia')?.value) || 0;
-  const custoTotal = custoPedra + maoObra + energia;
-  bloco.querySelector('.item-custo-total').textContent = 'R$ ' + custoTotal.toLocaleString('pt-BR',{minimumFractionDigits:2});
-
-  // Atualiza lucro
-  const preco = parseFloat(bloco.querySelector('.item-preco')?.value) || 0;
-  const lucro = preco - custoTotal;
-  bloco.querySelector('.item-lucro').textContent = 'R$ ' + (lucro > 0 ? lucro.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '0,00');
-  const margemEl = bloco.querySelector('.item-margem');
-  if (margemEl && preco > 0) margemEl.value = ((lucro / preco) * 100).toFixed(1);
-
+  const precoEl = bloco.querySelector('.item-preco');
+  if (!precoEl.dataset.manual) precoEl.value = sugerido > 0 ? sugerido.toFixed(2) : '';
   calcTotal();
 }
 
-function atualizarVendaMargem(input, tipo) {
-  const bloco = input.closest('.item-bloco');
-  const maoObra = parseFloat(bloco.querySelector('.item-mao-obra')?.value) || 0;
-  const energia = parseFloat(bloco.querySelector('.item-energia')?.value) || 0;
-  const custoPedra = parseFloat(bloco.querySelector('.item-custo-pedra')?.dataset?.valorTotal) || 0;
-  const custoTotal = custoPedra + maoObra + energia;
-
-  const precoInput = bloco.querySelector('.item-preco');
-  const margemInput = bloco.querySelector('.item-margem');
-  const lucroEl = bloco.querySelector('.item-lucro');
-
-  let preco = parseFloat(precoInput.value) || 0;
-  let margem = parseFloat(margemInput.value) || 0;
-
-  if (tipo === 'preco') {
-    // Preço digitado → calcula margem
-    const lucro = preco - custoTotal;
-    const novaM = preco > 0 ? ((lucro / preco) * 100) : 0;
-    margemInput.value = novaM > 0 ? novaM.toFixed(1) : '';
-    lucroEl.textContent = 'R$ ' + (lucro > 0 ? lucro.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '0,00');
-  } else {
-    // Margem digitada → calcula preço
-    // preco = custo / (1 - margem/100)
-    if (margem >= 100) margem = 99;
-    const novoPreco = custoTotal > 0 ? custoTotal / (1 - margem / 100) : 0;
-    precoInput.value = novoPreco > 0 ? novoPreco.toFixed(2) : '';
-    const lucro = novoPreco - custoTotal;
-    lucroEl.textContent = 'R$ ' + (lucro > 0 ? lucro.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '0,00');
-    preco = novoPreco;
-  }
-
-  bloco.querySelector('.item-total').textContent = preco.toLocaleString('pt-BR',{minimumFractionDigits:2});
+// Se o Júlio digitar por cima, o sistema para de recalcular essa peça (não mexe no estoque)
+function editarPrecoManual(input) {
+  if (input.value === '') { delete input.dataset.manual; calcularItem(input); return; }
+  input.dataset.manual = '1';
   calcTotal();
 }
 
@@ -2414,19 +2323,15 @@ async function salvarOrcamento() {
     const q = parseFloat(bloco.querySelector('.item-qtd')?.value) || (comp * larg);
     const chapaSel = bloco.querySelector('.item-chapa');
     const chapaId = chapaSel ? parseInt(chapaSel.value) || null : null;
-    const chapaNome = chapaSel && chapaSel.selectedIndex >= 0 ? chapaSel.options[chapaSel.selectedIndex].textContent : '';
-    const custoPedra = parseFloat(bloco.querySelector('.item-custo-pedra')?.dataset?.valorTotal) || 0;
-    const maoObra = parseFloat(bloco.querySelector('.item-mao-obra')?.value) || 0;
-    const energia = parseFloat(bloco.querySelector('.item-energia')?.value) || 0;
-    const custoTotal = custoPedra + maoObra + energia;
+    const chapaNome = chapaSel && chapaSel.selectedIndex > 0 ? chapaSel.options[chapaSel.selectedIndex].textContent.replace(' (sem preço de venda)', '') : '';
+    const vendaM2 = parseFloat(bloco.dataset.venda) || 0;
+    const precoSugerido = parseFloat(bloco.dataset.sugerido) || 0;
     const preco = parseFloat(bloco.querySelector('.item-preco')?.value) || 0;
-    const margem = parseFloat(bloco.querySelector('.item-margem')?.value) || 0;
-    const lucro = preco - custoTotal;
     if (d) itens.push({
       desc: d, comp, larg, qtd: q,
       chapaId, chapa: chapaNome,
-      custoPedra, maoObra, energia, custoTotal,
-      preco, total: preco, lucro, margem
+      vendaM2, precoSugerido,
+      preco, total: preco
     });
   });
 
@@ -2517,11 +2422,7 @@ const COLUNAS_DEF = [
   { key: 'comp',       label: 'Comprimento' },
   { key: 'larg',       label: 'Largura' },
   { key: 'm2',         label: 'm²' },
-  { key: 'custoPedra', label: 'Custo da Pedra' },
-  { key: 'custoTotal', label: 'Custo Total' },
   { key: 'venda',      label: 'Preço de Venda' },
-  { key: 'lucro',      label: 'Lucro' },
-  { key: 'margem',     label: 'Margem (%)' },
   { key: 'total',      label: 'Total' },
 ];
 
@@ -4325,7 +4226,7 @@ async function carregarChapas() {
           id: c.id, material: c.material || '',
           w, h, m2, custoPorM2,
           qtd: c.qtd || 0, min: c.minimo || 0,
-          valor
+          valor, vendaM2: parseFloat(c.venda_m2) || 0
         };
       });
       renderEstoque();
@@ -4349,7 +4250,7 @@ function renderEstoque() {
   const busca = (document.getElementById('est-search')?.value || '').toLowerCase();
 
   const totalChapas = chapas.reduce((s,c)=>s+c.qtd,0);
-  const areaTotal = chapas.reduce((s,c)=>s + (c.w*c.h/10000)*c.qtd, 0);
+  const areaTotal = chapas.reduce((s,c)=>s + (c.w*c.h)*c.qtd, 0);
   const valorTotal = chapas.reduce((s,c)=>s + c.valor*c.qtd, 0);
   const baixo = chapas.filter(c => c.qtd <= c.min).length;
 
@@ -4367,14 +4268,14 @@ function renderEstoque() {
   empty.style.display = 'none';
 
   tbody.innerHTML = lista.map(c => {
-    const areaUn = (c.w*c.h/10000);
+    const areaUn = (c.w*c.h);
     const estoqueBaixo = c.qtd <= c.min;
     return `<tr>
       <td style="font-weight:600;">${c.material}</td>
-      <td style="color:var(--muted);">${c.w} × ${c.h} cm</td>
+      <td style="color:var(--muted);">${c.w} × ${c.h} m</td>
       <td style="text-align:center;font-weight:700;">${c.qtd}</td>
       <td style="color:var(--muted);">${areaUn.toLocaleString('pt-BR',{maximumFractionDigits:2})} m²</td>
-      <td style="font-weight:600;">R$ ${c.valor.toLocaleString('pt-BR')}</td>
+      <td style="font-weight:600;">R$ ${c.valor.toLocaleString('pt-BR')}<div style="font-size:11px;font-weight:500;color:var(--muted);">${c.vendaM2 ? 'Venda: R$ ' + c.vendaM2.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '/m²' : 'Sem preço de venda'}</div></td>
       <td>${estoqueBaixo ? '<span class="badge badge-cancelado">Estoque baixo</span>' : '<span class="badge badge-aprovado">OK</span>'}</td>
       <td>
         <div class="action-row">
@@ -4406,6 +4307,7 @@ function abrirModalChapa(id = null) {
     document.getElementById('chapa-qtd').value = c.qtd;
     document.getElementById('chapa-min').value = c.min;
     document.getElementById('chapa-valor').value = c.valor;
+    document.getElementById('chapa-venda-m2').value = c.vendaM2 || '';
     calcularM2Chapa();
   } else {
     document.getElementById('chapa-w').value = '';
@@ -4413,6 +4315,7 @@ function abrirModalChapa(id = null) {
     document.getElementById('chapa-qtd').value = 1;
     document.getElementById('chapa-min').value = 1;
     document.getElementById('chapa-valor').value = '';
+    document.getElementById('chapa-venda-m2').value = '';
     document.getElementById('chapa-m2-display').textContent = '0,00 m²';
     document.getElementById('chapa-custom2-display').textContent = 'R$ 0,00';
     document.getElementById('chapa-material-outro').style.display='none';
@@ -4459,6 +4362,7 @@ async function salvarChapa() {
     qtd: parseInt(document.getElementById('chapa-qtd').value) || 0,
     min: parseInt(document.getElementById('chapa-min').value) || 0,
     valor,
+    vendaM2: parseFloat(document.getElementById('chapa-venda-m2').value) || 0,
   };
 
   // ─── MODO ONLINE ───
@@ -4466,7 +4370,7 @@ async function salvarChapa() {
     try {
       const payload = {
         material: dados.material, largura: dados.w, altura: dados.h,
-        qtd: dados.qtd, minimo: dados.min, valor: dados.valor
+        qtd: dados.qtd, minimo: dados.min, valor: dados.valor, venda_m2: dados.vendaM2
       };
       if (editandoChapaId) {
         await apiRequest('PUT', '/api/chapas/' + editandoChapaId, payload);
